@@ -1,0 +1,89 @@
+{
+  "simulation_id": "dt-8829-x21",
+  "project_metadata": {
+    "user_id": "usr_9921",
+    "project_name": "Credit_Alpha_2026",
+    "dataset_source": "loan_applications_v4.parquet",
+    "target_column": "approval_decision",
+    "protection_attributes": ["race", "gender", "age_group"],
+    "mapping": {
+      "features": ["income", "credit_score", "zip_code", "employment_status"],
+      "labels": { "0": "denied", "1": "approved" }
+    }
+  },
+  "synthetic_population": [
+    {
+      "persona_id": "p_001",
+      "traits": {
+        "age_group": "18-24",
+        "gender": "Non-binary",
+        "race": "Indigenous",
+        "income": 42000,
+        "credit_score": 640,
+        "location": "Urban-South",
+        "employment_status": "Gig-Economy"
+      },
+      "metadata": {
+        "gemini_seed_id": "gen_882",
+        "fidelity_score": 0.98
+      }
+    }
+    /* ... 1,000+ more personas ... */
+  ],
+  "simulation_states": [
+    {
+      "year": 1,
+      "metrics": {
+        "fairness_scores": {
+          "demographic_parity": 0.82,
+          "equal_opportunity": 0.79,
+          "disparate_impact_ratio": 0.74
+        },
+        "economic_metrics": {
+          "total_wealth_generated": 12500000,
+          "group_wealth_distribution": {
+            "Indigenous": 850000,
+            "White": 8200000,
+            "Black": 1200000,
+            "Latino": 2250000
+          }
+        },
+        "bias_flags": [
+          {
+            "category": "Intersectional_Bias",
+            "description": "Young Indigenous applicants showing 15% lower approval rates vs peers with similar credit."
+          }
+        ]
+      },
+      "audit_logs": {
+        "round_summary": "Initial baseline simulation. Model shows high sensitivity to ZIP code as a latent proxy for race.",
+        "gemini_reasoning": "The decision boundary at Year 1 is heavily weighted by 'credit_score' which, in this synthetic population, correlates with 'location' due to historical economic clustering. This creates a feedback loop where Zip 30318 is getting systemic denials despite individual merit.",
+        "llm_confidence": 0.94
+      }
+    }
+    /* ... Repeated for Year 2 through 10 ... */
+  ],
+  "api_contract": {
+    "endpoint": "/run-simulation",
+    "method": "POST",
+    "request_payload": {
+      "project_id": "string",
+      "simulation_config": {
+        "years_to_simulate": 10,
+        "persona_count": 1000,
+        "drift_parameters": {
+          "economic_shift": "moderate_recession",
+          "policy_changes": ["interest_rate_hike"]
+        }
+      }
+    },
+    "response_envelope": {
+      "status": "success",
+      "execution_time_ms": 4200,
+      "data": {
+        "summary": "Object containing top-level fairness delta",
+        "results_uri": "s3://decision-twin-results/dt-8829-x21.json"
+      }
+    }
+  }
+}
