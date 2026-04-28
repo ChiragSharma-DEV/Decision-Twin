@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { API_BASE_URL } from '@/lib/api-config';
 import { Upload, FileSpreadsheet, FileJson, Database, CheckCircle2, AlertTriangle, X, File } from 'lucide-react';
 
 type FileType = 'csv' | 'json' | 'parquet';
@@ -131,7 +132,7 @@ export default function DataIngest() {
       formData.append('fileType', state.fileType);
       formData.append('schema', JSON.stringify(state.validation.schema));
 
-      const res = await fetch('http://localhost:8000/ingest-data', {
+      const res = await fetch(`${API_BASE_URL}/ingest-data`, {
         method: 'POST',
         body: formData
       });

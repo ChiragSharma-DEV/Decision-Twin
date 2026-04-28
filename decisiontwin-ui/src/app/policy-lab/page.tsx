@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { API_BASE_URL } from '@/lib/api-config';
 import { Play, TrendingUp, TrendingDown, ArrowRight, Lightbulb } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
@@ -22,7 +23,7 @@ export default function PolicyLab() {
 
   const generateData = useMutation({
     mutationFn: async () => {
-      const res = await fetch('http://localhost:8000/generate-synthetic-data', {
+      const res = await fetch(`${API_BASE_URL}/generate-synthetic-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ persona_count: 100, characteristics: ["gender", "race", "income", "credit_score"] })
@@ -33,7 +34,7 @@ export default function PolicyLab() {
 
   const runSimulation = useMutation({
     mutationFn: async ({ years, threshold }: { years: number; threshold: number }) => {
-      const res = await fetch('http://localhost:8000/simulate-bias', {
+      const res = await fetch(`${API_BASE_URL}/simulate-bias`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

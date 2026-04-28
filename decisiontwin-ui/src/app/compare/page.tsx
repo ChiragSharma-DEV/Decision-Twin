@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { API_BASE_URL } from '@/lib/api-config';
 import { Play, Brain, TreeDeciduous, BarChart3, CheckCircle2, XCircle } from 'lucide-react';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
@@ -52,7 +53,7 @@ export default function ModelCompare() {
 
   const generateData = useMutation({
     mutationFn: async () => {
-      const res = await fetch('http://localhost:8000/generate-synthetic-data', {
+      const res = await fetch(`${API_BASE_URL}/generate-synthetic-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ persona_count: 100, characteristics: ["gender", "race", "income", "credit_score"] })
@@ -78,7 +79,7 @@ export default function ModelCompare() {
     setResults([]);
 
     for (const model of selectedModels) {
-      const res = await fetch('http://localhost:8000/simulate-bias', {
+      const res = await fetch(`${API_BASE_URL}/simulate-bias`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

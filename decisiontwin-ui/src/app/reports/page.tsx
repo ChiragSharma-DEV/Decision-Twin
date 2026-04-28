@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { API_BASE_URL } from '@/lib/api-config';
 import { FileText, Download, Calendar, TrendingUp, TrendingDown, Clock, Share2 } from 'lucide-react';
 
 interface HistoricalSimulation {
@@ -24,7 +25,7 @@ export default function Reports() {
 
   const generateData = useMutation({
     mutationFn: async () => {
-      const res = await fetch('http://localhost:8000/generate-synthetic-data', {
+      const res = await fetch(`${API_BASE_URL}/generate-synthetic-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ persona_count: 100, characteristics: ["gender", "race", "income", "credit_score"] })
@@ -36,7 +37,7 @@ export default function Reports() {
   const { data: simulation } = useQuery({
     queryKey: ['simulate'],
     queryFn: async () => {
-      const res = await fetch('http://localhost:8000/simulate-bias', {
+      const res = await fetch(`${API_BASE_URL}/simulate-bias`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ years_to_simulate: 5, sensitive_feature: 'gender', threshold_adjustment: 0 })
@@ -49,7 +50,7 @@ export default function Reports() {
   const { data: report, isLoading: isReportLoading } = useQuery({
     queryKey: ['report'],
     queryFn: async () => {
-      const res = await fetch('http://localhost:8000/generate-report', {
+      const res = await fetch(`${API_BASE_URL}/generate-report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

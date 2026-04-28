@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSimulationStore } from '@/store/useSimulationStore';
+import { API_BASE_URL } from '@/lib/api-config';
 import { Play, ShieldAlert, CheckCircle2, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -34,7 +35,7 @@ export default function Dashboard() {
 
   const generateData = useMutation({
     mutationFn: async () => {
-      const res = await fetch('http://localhost:8000/generate-synthetic-data', {
+      const res = await fetch(`${API_BASE_URL}/generate-synthetic-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ persona_count: 1000, characteristics: ["gender", "race", "income", "credit_score"] })
@@ -46,7 +47,7 @@ export default function Dashboard() {
   const { data: simulation, isLoading } = useQuery<SimulationData>({
     queryKey: ['simulate', yearsToSimulate, sensitiveFeature, thresholdAdjustment],
     queryFn: async () => {
-      const res = await fetch('http://localhost:8000/simulate-bias', {
+      const res = await fetch(`${API_BASE_URL}/simulate-bias`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ years_to_simulate: yearsToSimulate, sensitive_feature: sensitiveFeature, threshold_adjustment: thresholdAdjustment })
@@ -61,7 +62,7 @@ export default function Dashboard() {
   const { data: report, isLoading: isReportLoading } = useQuery({
     queryKey: ['report', yearsToSimulate, sensitiveFeature, thresholdAdjustment, simulation?.metrics?.demographic_parity_ratio],
     queryFn: async () => {
-      const res = await fetch('http://localhost:8000/generate-report', {
+      const res = await fetch(`${API_BASE_URL}/generate-report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

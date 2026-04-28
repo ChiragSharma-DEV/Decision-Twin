@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { API_BASE_URL } from '@/lib/api-config';
 import { Search, User, Filter } from 'lucide-react';
 
 interface Persona {
@@ -28,7 +29,7 @@ export default function PersonaExplorer() {
   const { data: personas, isLoading } = useQuery({
     queryKey: ['personas'],
     queryFn: async () => {
-      const res = await fetch('http://localhost:8000/generate-synthetic-data', {
+      const res = await fetch(`${API_BASE_URL}/generate-synthetic-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ persona_count: 100, characteristics: ["gender", "race", "income", "credit_score"] })
