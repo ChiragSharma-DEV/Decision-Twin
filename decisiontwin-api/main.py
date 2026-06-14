@@ -441,11 +441,18 @@ def override_decision(request: OverrideRequest):
         )
         SESSION["simulation_results"] = results
         
+        business_impact = sim_critic.calculate_financial_impact(
+            total_applicants=len(SESSION["df"]) if SESSION["df"] is not None else 0,
+            disparate_impact=results["yearly_results"][-1]["metrics"]["disparate_impact"],
+            domain=SESSION["domain"]
+        )
+        
         return {
             "status": "success",
             "message": f"Successfully applied override at Year {year}, Index {request.row_index}.",
             "adjustment_suggestion": results.get("adjustment_suggestion"),
             "compliance_scorecard": results.get("compliance_scorecard"),
+            "business_impact": business_impact,
             "yearly_results": [
                 {
                     "year": r["year"],
