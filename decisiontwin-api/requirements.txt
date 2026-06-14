@@ -9,4 +9,6 @@ python-multipart==0.0.12
 joblib==1.4.2
 requests==2.32.3
 google-generativeai==0.8.3
-google-cloud-aiplatform>=1.51.0
+# google-cloud-aiplatform is only needed when AI_ENABLED=true with Vertex AI.
+# Comment it out for free-tier deployment to avoid 10+ min build times.
+# google-cloud-aiplatform>=1.51.0
