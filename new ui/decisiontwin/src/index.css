@@ -1,0 +1,111 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* Cream Theme Variables */
+.theme-cream {
+  --bg-primary: #FDFBF8;
+  --bg-secondary: #F6F0E5;
+  --bg-card: #FFFFFF;
+  --text-primary: #2C211A;
+  --text-secondary: #7A695E;
+  --border-premium: #EAE1D2;
+  --border-active: #8C6239;
+  --accent-gold: #8C6239;
+  --accent-gold-hover: #6B4928;
+  --accent-gold-muted: rgba(140, 98, 57, 0.08);
+  --success: #3E5F46;
+  --success-bg: rgba(62, 95, 70, 0.08);
+  --warning: #A34836;
+  --warning-bg: rgba(163, 72, 54, 0.08);
+}
+
+/* Mono Theme Variables (Strict High-Fashion Noir Look) */
+.theme-mono {
+  --bg-primary: #000000;
+  --bg-secondary: #090909;
+  --bg-card: #111111;
+  --text-primary: #FFFFFF;
+  --text-secondary: #8E8E93;
+  --border-premium: #1F1F1F;
+  --border-active: #FFFFFF;
+  --accent-gold: #FFFFFF;
+  --accent-gold-hover: #E5E5E5;
+  --accent-gold-muted: rgba(255, 255, 255, 0.08);
+  --success: #FFFFFF;
+  --success-bg: rgba(255, 255, 255, 0.08);
+  --warning: #A3A3A3;
+  --warning-bg: rgba(163, 163, 163, 0.1);
+}
+
+/* Custom layout global transitions and typography overrides */
+body {
+  transition: background-color 0.5s cubic-bezier(0.16, 1, 0.3, 1), color 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+/* Premium utility tokens as standard design modifiers */
+.p-bg-main { background-color: var(--bg-primary); }
+.p-bg-secondary { background-color: var(--bg-secondary); }
+.p-bg-card { background-color: var(--bg-card); }
+.p-text-main { color: var(--text-primary); }
+.p-text-muted { color: var(--text-secondary); }
+.p-border { border-color: var(--border-premium); }
+.p-border-active { border-color: var(--border-active); }
+.p-text-accent { color: var(--accent-gold); }
+.p-bg-accent { background-color: var(--accent-gold); }
+.p-bg-accent-hover:hover { background-color: var(--accent-gold-hover); }
+.p-bg-accent-muted { background-color: var(--accent-gold-muted); }
+.p-text-success { color: var(--success); }
+.p-bg-success-muted { background-color: var(--success-bg); }
+.p-text-warning { color: var(--warning); }
+.p-bg-warning-muted { background-color: var(--warning-bg); }
+
+/* Premium styling components */
+.premium-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-premium);
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.premium-card:hover {
+  border-color: var(--border-active);
+}
+
+.premium-button {
+  background-color: var(--accent-gold);
+  color: var(--bg-primary);
+  font-weight: 600;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.premium-input {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-premium);
+  color: var(--text-primary);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+.premium-input:focus {
+  border-color: var(--border-active);
+  outline: none;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-premium);
+  border-radius: 8px;
+}

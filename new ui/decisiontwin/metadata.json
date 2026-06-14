@@ -1,0 +1,6 @@
+{
+  "name": "DecisionTwin",
+  "description": "Predicting the Future Impact of AI Decisions. Simulated sandbox for AI Fairness, Compliance, Bias to Dollar Translation, Doppelganger and Policy Lab testing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
