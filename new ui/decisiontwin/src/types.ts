@@ -16,6 +16,7 @@ export interface Persona {
   outcome: string;
   heatmap: number[]; // simulated data array
   creditScore: number;
+  traits?: Record<string, any>;
 }
 
 export interface PolicyState {

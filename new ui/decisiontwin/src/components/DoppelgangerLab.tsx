@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Persona } from "../types";
-import { Check, X, Shield, RefreshCw } from "lucide-react";
+import { Shield, RefreshCw } from "lucide-react";
 import { useDecisionTwinStore } from "../store/useDecisionTwinStore";
 
 interface DoppelgangerLabProps {
@@ -8,88 +8,86 @@ interface DoppelgangerLabProps {
 }
 
 export default function DoppelgangerLab({ preselectedPersona }: DoppelgangerLabProps) {
-  const [originalName, setOriginalName] = useState("Priyanka Sen");
-  const [originalGender, setOriginalGender] = useState("Female");
-  const [originalIncome, setOriginalIncome] = useState(50000);
-  const [originalCreditScore, setOriginalCreditScore] = useState(760);
-  const [originalDecision, setOriginalDecision] = useState<"Approved" | "Rejected">("Rejected");
-
-  const [clonedGender, setClonedGender] = useState("Male");
-  const [clonedDecision, setClonedDecision] = useState<"Approved" | "Rejected">("Approved");
-
-  const [biasScore, setBiasScore] = useState(91);
-  const [systemicProb, setSystemicProb] = useState("High");
-
-  const [explanation, setExplanation] = useState("");
-
+  const personas = useDecisionTwinStore((s) => s.personas);
+  const session = useDecisionTwinStore((s) => s.session);
   const explainDoppelgangerFlow = useDecisionTwinStore((s) => s.explainDoppelgangerFlow);
   const loading = useDecisionTwinStore((s) => s.loading.doppelganger);
 
-  // Sync if page loaded from Crash Test select
-  useEffect(() => {
-    if (preselectedPersona) {
-      setOriginalName(preselectedPersona.name);
-      setOriginalGender(preselectedPersona.gender);
-      setOriginalCreditScore(preselectedPersona.creditScore || 710);
-      
-      const cleanIncome = parseInt(preselectedPersona.income.replace(/[^0-9]/g, "")) || 50000;
-      setOriginalIncome(cleanIncome);
-      setOriginalDecision("Rejected");
+  const activePersona = preselectedPersona || personas[0];
+  const protectedAttr = session?.protected_attribute?.toLowerCase() || 'gender';
 
-      setClonedGender(preselectedPersona.gender === "Female" ? "Male" : "Female");
-      setClonedDecision("Approved");
+  const [clonedTraits, setClonedTraits] = useState<Record<string, any>>({});
+  const [explanation, setExplanation] = useState("");
+
+  const originalTraits = useMemo(() => activePersona?.traits || {}, [activePersona]);
+  const originalDecision = activePersona?.approvalProbability >= 50 ? "Approved" : "Rejected";
+
+  useEffect(() => {
+    if (activePersona?.traits) {
+      const cloned = { ...activePersona.traits };
+      const originalVal = String(cloned[protectedAttr] || '');
+      
+      // Basic naive swap for the protected attribute demo
+      if (originalVal === 'Female') cloned[protectedAttr] = 'Male';
+      else if (originalVal === 'Male') cloned[protectedAttr] = 'Female';
+      else cloned[protectedAttr] = 'Alternative Value';
+
+      setClonedTraits(cloned);
       setExplanation("");
     }
-  }, [preselectedPersona]);
+  }, [activePersona, protectedAttr]);
 
-  // Adjust outcome depending on stats logic
-  useEffect(() => {
-    if (originalGender === "Female" && clonedGender === "Male" && originalCreditScore >= 700) {
-      setOriginalDecision("Rejected");
-      setClonedDecision("Approved");
-      setBiasScore(91);
-      setSystemicProb("High");
-    } else if (originalGender === "Male" && clonedGender === "Female" && originalCreditScore >= 700) {
-      setOriginalDecision("Approved");
-      setClonedDecision("Rejected");
-      setBiasScore(88);
-      setSystemicProb("High");
-    } else {
-      setOriginalDecision(originalCreditScore >= 680 ? "Approved" : "Rejected");
-      setClonedDecision(originalCreditScore >= 680 ? "Approved" : "Rejected");
-      setBiasScore(12);
-      setSystemicProb("Minimal");
+  // Dynamic bias score based on difference (placeholder for UI dynamics)
+  const isDifferent = originalTraits[protectedAttr] !== clonedTraits[protectedAttr];
+  const biasScore = isDifferent ? 88 : 12;
+  const systemicProb = isDifferent ? "High" : "Minimal";
+  const clonedDecision = isDifferent ? (originalDecision === "Rejected" ? "Approved" : "Rejected") : originalDecision;
+
+  const flipRate = originalDecision !== clonedDecision ? 100 : 0;
+
+  const handleTraitChange = (key: string, value: string) => {
+    setClonedTraits(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleReset = () => {
+    if (activePersona?.traits) {
+      const cloned = { ...activePersona.traits };
+      const originalVal = String(cloned[protectedAttr] || '');
+      if (originalVal === 'Female') cloned[protectedAttr] = 'Male';
+      else if (originalVal === 'Male') cloned[protectedAttr] = 'Female';
+      else cloned[protectedAttr] = 'Alternative Value';
+      setClonedTraits(cloned);
+      setExplanation("");
     }
-  }, [originalGender, clonedGender, originalCreditScore, originalIncome]);
-
-  const flipRate = useMemo(() => {
-    if (originalDecision !== clonedDecision) return 100;
-    return 0;
-  }, [originalDecision, clonedDecision]);
+  };
 
   const handleAskGemini = async () => {
+    if (!activePersona) return;
     try {
       const result = await explainDoppelgangerFlow({
         original: {
-          name: originalName,
-          gender: originalGender,
-          income: originalIncome,
-          creditScore: originalCreditScore,
+          ...originalTraits,
           decision: originalDecision,
         },
         cloned: {
-          gender: clonedGender,
-          income: originalIncome,
-          creditScore: originalCreditScore,
+          ...clonedTraits,
           decision: clonedDecision,
         },
         biasScore,
       });
       setExplanation(result);
     } catch {
-      setExplanation("⚠️ Connection offline. Ledger analysis: Zip-code proxy weight vectors under XGBoost bias models penalize the original female candidate while favoring the cloned male equivalent. Restructuring neural nodes in Policy Lab is recommended.");
+      setExplanation("⚠️ Connection offline. Ledger analysis: The proxy weight vectors penalize the original candidate while favoring the cloned equivalent. Restructuring neural nodes in Policy Lab is recommended.");
     }
   };
+
+  if (!activePersona) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 p-text-muted font-sans text-xs">
+        <p>No persona selected. Please go to Crash Test Dummies to deploy an adversarial dummy first.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6" id="doppelganger-lab-view">
@@ -99,18 +97,11 @@ export default function DoppelgangerLab({ preselectedPersona }: DoppelgangerLabP
         <div>
           <span className="text-[9px] font-mono p-text-accent uppercase tracking-widest font-bold">Demographic Parity Testbench</span>
           <h2 className="text-2xl font-serif font-bold p-text-main mt-1">Doppelganger Test Lab</h2>
-          <p className="text-xs p-text-muted mt-0.5">Clone applicants with identical parameters, shifting only protected traits like gender to verify bias compliance.</p>
+          <p className="text-xs p-text-muted mt-0.5">Clone applicants with identical parameters, shifting only protected traits like {session?.protected_attribute || 'gender'} to verify bias compliance.</p>
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => {
-              setOriginalGender("Female");
-              setClonedGender("Male");
-              setOriginalCreditScore(760);
-              setOriginalIncome(50000);
-              setOriginalName("Priyanka Sen");
-              setExplanation("");
-            }}
+            onClick={handleReset}
             className="px-3.5 py-1.5 border p-border rounded text-[11px] font-mono font-bold uppercase transition-all hover:p-bg-secondary p-text-main flex items-center gap-2 cursor-pointer shadow-sm"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Reset Anchor
@@ -130,57 +121,20 @@ export default function DoppelgangerLab({ preselectedPersona }: DoppelgangerLabP
             </span>
           </div>
 
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[9px] font-mono p-text-muted uppercase tracking-wider">Applicant Name</label>
-              <input
-                type="text"
-                value={originalName}
-                onChange={(e) => setOriginalName(e.target.value)}
-                className="w-full mt-1.5 p-bg-secondary border p-border rounded px-3 py-2 text-xs p-text-main focus:outline-none focus:p-border-active"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[9px] font-mono p-text-muted uppercase tracking-wider">Protected parameter (Gender)</label>
-              <select
-                value={originalGender}
-                onChange={(e) => setOriginalGender(e.target.value)}
-                className="w-full mt-1.5 p-bg-secondary border p-border rounded px-3 py-2 text-xs p-text-main focus:outline-none focus:p-border-active cursor-pointer"
-              >
-                <option value="Female">Female</option>
-                <option value="Male">Male</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[9px] font-mono p-text-muted uppercase tracking-wider">Monthly Income (₹)</label>
-              <input
-                type="number"
-                value={originalIncome}
-                onChange={(e) => setOriginalIncome(Number(e.target.value))}
-                className="w-full mt-1.5 p-bg-secondary border p-border rounded px-3 py-2 text-xs p-text-main font-mono font-bold focus:outline-none focus:p-border-active"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between items-baseline mb-1">
-                <label className="text-[9px] font-mono p-text-muted uppercase tracking-wider">Credit Rating Score</label>
-                <span className="text-xs font-mono font-bold p-text-accent">{originalCreditScore}</span>
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+            {Object.entries(originalTraits).map(([key, value]) => (
+              <div key={key}>
+                <label className="block text-[9px] font-mono p-text-muted uppercase tracking-wider">
+                  {key === protectedAttr ? `Protected parameter (${key})` : key.replace(/_/g, ' ')}
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  value={String(value)}
+                  className="w-full mt-1.5 p-bg-secondary border p-border rounded px-3 py-2 text-xs p-text-main opacity-70 cursor-not-allowed focus:outline-none"
+                />
               </div>
-              <input
-                type="range"
-                min="500"
-                max="850"
-                value={originalCreditScore}
-                onChange={(e) => setOriginalCreditScore(Number(e.target.value))}
-                className="w-full mt-2 accent-amber-700 cursor-pointer"
-              />
-              <div className="flex justify-between text-[9px] p-text-muted font-mono mt-0.5">
-                <span>500 (Subprime)</span>
-                <span>850 (Excellent)</span>
-              </div>
-            </div>
+            ))}
           </div>
 
           {/* Decision Node Badge */}
@@ -208,45 +162,29 @@ export default function DoppelgangerLab({ preselectedPersona }: DoppelgangerLabP
             </span>
           </div>
 
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[9px] font-mono p-text-muted uppercase tracking-wider">Identical Profile Name</label>
-              <input
-                type="text"
-                disabled
-                value={`${originalName} (Twin)`}
-                className="w-full mt-1.5 p-bg-secondary border p-border rounded px-3 py-2 text-xs p-text-main opacity-50 cursor-not-allowed font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[9px] font-mono p-text-muted uppercase tracking-wider">Protected parameter (Gender-Swapped)</label>
-              <select
-                value={clonedGender}
-                onChange={(e) => setClonedGender(e.target.value)}
-                className="w-full mt-1.5 p-bg-secondary border p-border-active rounded px-3 py-2 text-xs p-text-accent font-bold cursor-pointer"
-              >
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[9px] font-mono p-text-muted uppercase tracking-wider">Monthly Income - Cloned</label>
-              <input
-                type="text"
-                disabled
-                value={`₹${originalIncome.toLocaleString()} (Locked to Anchor)`}
-                className="w-full mt-1.5 p-bg-secondary border p-border rounded px-3 py-2 text-xs p-text-main opacity-50 cursor-not-allowed"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[9px] font-mono p-text-muted uppercase tracking-wider">Credit Rating - Cloned</label>
-              <div className="mt-1.5 p-2.5 p-bg-secondary rounded border p-border text-xs p-text-muted font-mono text-center">
-                Strict Parity: Score Locked to <span className="p-text-accent font-bold">{originalCreditScore}</span>
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+            {Object.entries(clonedTraits).map(([key, value]) => (
+              <div key={`cloned-${key}`}>
+                <label className="block text-[9px] font-mono p-text-muted uppercase tracking-wider">
+                  {key === protectedAttr ? `Protected parameter (${key}-Swapped)` : `${key.replace(/_/g, ' ')} - Cloned`}
+                </label>
+                {key === protectedAttr ? (
+                  <input
+                    type="text"
+                    value={String(value)}
+                    onChange={(e) => handleTraitChange(key, e.target.value)}
+                    className="w-full mt-1.5 p-bg-secondary border p-border-active rounded px-3 py-2 text-xs p-text-accent font-bold cursor-text focus:outline-none"
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    disabled
+                    value={`${String(value)} (Locked)`}
+                    className="w-full mt-1.5 p-bg-secondary border p-border rounded px-3 py-2 text-xs p-text-main opacity-50 cursor-not-allowed"
+                  />
+                )}
               </div>
-            </div>
+            ))}
           </div>
 
           {/* Cloned decision outcome */}
