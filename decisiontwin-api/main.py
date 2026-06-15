@@ -13,11 +13,13 @@ from agents.persona_generator import PersonaGenerator
 from agents.simulation_critic import SimulationCritic
 from agents.compliance_auditor import ComplianceAuditor
 
+import warnings
+warnings.filterwarnings("ignore", message="Field .* has conflict with protected namespace")
+
 app = FastAPI(
     title="DecisionTwin API", 
     description="Multi-Agent AI Fairness, Simulation, and Governance Platform Backend"
 )
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -88,6 +90,10 @@ try:
     print("Mock packs verified successfully.")
 except Exception as e:
     print(f"Failed to pre-generate mock packs on startup: {e}")
+
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "DecisionTwin API"}
 
 @app.get("/health")
 def health_check():
