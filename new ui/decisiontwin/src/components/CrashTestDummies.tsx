@@ -180,11 +180,20 @@ export default function CrashTestDummies({ onSelectPersona, onNavigateToTab }: C
 
             <div className="space-y-4 border-t p-border pt-4">
               <div>
-                <span className="text-[9px] font-mono p-text-muted uppercase tracking-widest block">Core Demographics</span>
-                <div className="grid grid-cols-2 gap-2 mt-1.5 p-bg-secondary p-3 rounded border p-border text-[11px] font-mono p-text-main shadow-inner">
-                  <div>Edu: {selectedPersona.education}</div>
-                  <div>Disability: {selectedPersona.disability}</div>
-                  <div className="col-span-2 text-[10px] p-text-muted mt-1">Location Profile: {selectedPersona.location}</div>
+                <span className="text-[9px] font-mono p-text-muted uppercase tracking-widest block">API Trait Telemetry</span>
+                <div className="grid grid-cols-2 gap-2 mt-1.5 p-bg-secondary p-3 rounded border p-border text-[11px] font-mono p-text-main shadow-inner max-h-48 overflow-y-auto">
+                  {selectedPersona.traits && Object.keys(selectedPersona.traits).length > 0 ? (
+                    Object.entries(selectedPersona.traits).map(([key, value]) => (
+                      <div key={key} className="col-span-2 sm:col-span-1 truncate" title={`${key}: ${value}`}>
+                        <span className="p-text-muted capitalize">{key.replace(/_/g, ' ')}:</span> {String(value)}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-2 text-[10px] p-text-muted mt-1">
+                      Edu: {selectedPersona.education} • Disability: {selectedPersona.disability}
+                      <br />Location: {selectedPersona.location}
+                    </div>
+                  )}
                 </div>
               </div>
 

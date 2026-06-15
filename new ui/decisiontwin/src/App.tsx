@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(true); // Bypass login first for ultimate convenience, but let them logout to see login screen if they wish
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // Do not bypass login, show login screen first
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedDomain, setSelectedDomain] = useState("all");
 
@@ -78,6 +78,7 @@ export default function App() {
 
   const initSession = useDecisionTwinStore((s) => s.initSession);
   const simulation = useDecisionTwinStore((s) => s.simulation);
+  const session = useDecisionTwinStore((s) => s.session);
 
   useEffect(() => {
     initSession(selectedDomain);
@@ -220,7 +221,7 @@ export default function App() {
           </div>
 
           <div className="hidden xl:flex flex-col text-right font-mono text-[9px] p-text-muted">
-            <span>SECURE AUDITOR ACTIVE</span>
+            <span className="uppercase">AUDITING: <span className="p-text-main font-bold">{session?.domain || 'Global'}</span></span>
             <span className="p-text-accent font-semibold text-[10px] lowercase">er.ajaykumarsharma28@gmail.com</span>
           </div>
 
@@ -335,7 +336,7 @@ export default function App() {
                   <span>PREJUDICE RADAR ACTIVE</span>
                 </div>
                 <p className="text-[10px] p-text-muted leading-relaxed font-sans">
-                  Monitoring latent correlation patterns in real-time. System reports 92% cumulative fairness criteria over 10-year forecasts.
+                  Monitoring latent correlation patterns in real-time for protected trait <span className="p-text-main font-bold uppercase">{session?.protected_attribute || 'Unknown'}</span>. System reports {session ? 'active' : 'idle'} simulation tracking.
                 </p>
               </div>
             </div>

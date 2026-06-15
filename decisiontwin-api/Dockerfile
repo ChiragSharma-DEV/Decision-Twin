@@ -7,4 +7,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Render injects PORT at runtime; default to 8080 for local Docker use
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}

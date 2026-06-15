@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: decisiontwin-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: AI_ENABLED
+        value: false

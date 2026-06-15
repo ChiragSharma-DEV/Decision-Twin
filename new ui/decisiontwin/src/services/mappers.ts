@@ -101,6 +101,7 @@ export function mapAdversarialPersonaToUI(
         ? "Rejected by automated scoring model — adversarial demographic cluster flagged."
         : "Approved with elevated manual review risk under current policy weights.",
     heatmap: buildHeatmap(approvalProbability),
+    traits,
   };
 }
 

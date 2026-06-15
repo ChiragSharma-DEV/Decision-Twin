@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Shield, TrendingUp, AlertCircle, Users, Landmark, Percent, Ban, Calendar, ChevronRight, ArrowUpRight } from "lucide-react";
+import { Shield, TrendingUp, AlertCircle, Users, Landmark, Percent, Ban, Calendar, ArrowUpRight } from "lucide-react";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ComposedChart } from "recharts";
 import { useDecisionTwinStore } from "../store/useDecisionTwinStore";
 import {
   getAvailableTimelineYears,
   getMetricsForCalendarYear,
   mapSimulationToDashboardKpis,
+  simulationYearToCalendarYear,
 } from "../services/mappers";
 
 interface DashboardViewProps {
@@ -43,6 +45,16 @@ export default function DashboardView({ onCopilotMsg, selectedDomain }: Dashboar
     () => mapSimulationToDashboardKpis(simulation, session),
     [simulation, session]
   );
+
+  const chartData = useMemo(() => {
+    if (!simulation?.yearly_results) return [];
+    return simulation.yearly_results.map((r) => ({
+      year: simulationYearToCalendarYear(r.year),
+      fairness: Math.round(Math.max(0, Math.min(100, r.metrics.demographic_parity_ratio * 100))),
+      approvalRate: Math.round(Math.max(0, Math.min(100, r.average_target_rate * 100))),
+      disparityEvolution: Math.round(Math.max(0, Math.min(100, Math.abs(r.metrics.demographic_parity_diff) * 100))),
+    }));
+  }, [simulation]);
 
   const isSimulatorLinked = Boolean(simulation && session?.has_data);
 
@@ -254,62 +266,26 @@ export default function DashboardView({ onCopilotMsg, selectedDomain }: Dashboar
           {/* Premium Spatial Correlation Network Representation (Bespoke Artwork) */}
           <div className="p-5 rounded border p-border p-bg-secondary/40 flex flex-col justify-between">
             <div className="flex justify-between items-center mb-3">
-              <span className="text-[10px] uppercase tracking-widest font-mono p-text-accent font-bold">Algorithmic Correlation Network</span>
-              <span className="text-[9px] font-mono p-text-muted uppercase">Interactive Mesh Map</span>
+              <span className="text-[10px] uppercase tracking-widest font-mono p-text-accent font-bold">Longitudinal Trajectory</span>
+              <span className="text-[9px] font-mono p-text-muted uppercase">Recharts Rendering</span>
             </div>
 
-            {/* Custom SVG premium grid representation (looks extremely high end, like d3/Palantir layouts) */}
-            <div className="h-44 rounded p-bg-card border p-border relative overflow-hidden flex items-center justify-center p-4 shadow-inner">
-              <svg className="w-full h-full absolute inset-0 opacity-20 pointer-events-none" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                    <rect width="20" height="20" fill="none" />
-                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="currentColor" className="p-text-accent" strokeWidth="0.5" />
-                  </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#grid)" />
-              </svg>
-              
-              <div className="w-full flex justify-between items-center relative z-10 px-2">
-                {/* Inputs Layer */}
-                <div className="flex flex-col gap-4 text-left">
-                  <div className="p-1 px-2.5 rounded border p-border p-bg-secondary text-[8px] font-mono uppercase tracking-wider p-text-main flex items-center gap-1.5 shadow-sm">
-                    <span className="w-1.5 h-1.5 rounded-full p-bg-accent" />
-                    ZIP INDEX
-                  </div>
-                  <div className="p-1 px-2.5 rounded border p-border p-bg-secondary text-[8px] font-mono uppercase tracking-wider p-text-main flex items-center gap-1.5 shadow-sm">
-                    <span className="w-1.5 h-1.5 rounded-full p-bg-accent" />
-                    DEPENDETS
-                  </div>
-                  <div className="p-1 px-2.5 rounded border p-border p-bg-secondary text-[8px] font-mono uppercase tracking-wider p-text-main flex items-center gap-1.5 shadow-sm">
-                    <span className="w-1.5 h-1.5 rounded-full p-bg-accent" />
-                    METRIC HISTORY
-                  </div>
-                </div>
-
-                {/* Animated vector link lines */}
-                <div className="flex-grow h-24 mx-4 relative hidden sm:block">
-                  <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                    <line x1="0" y1="20" x2="100%" y2="50" stroke="currentColor" className="p-text-accent" strokeWidth="0.7" strokeDasharray="3,3" />
-                    <line x1="0" y1="50" x2="100%" y2="50" stroke="currentColor" className="p-text-accent" strokeWidth="0.7" />
-                    <line x1="0" y1="80" x2="100%" y2="50" stroke="currentColor" className="p-text-accent" strokeWidth="0.7" strokeDasharray="3,3" />
-                    <circle cx="50%" cy="50" r="3" className="p-text-accent animate-ping" />
-                    <circle cx="50%" cy="50" r="4" fill="currentColor" className="p-text-accent" />
-                  </svg>
-                </div>
-
-                {/* Correlation Readout */}
-                <div className="flex flex-col gap-3 text-right">
-                  <div className="p-2 p-bg-secondary rounded border p-border max-w-[130px] shadow-sm">
-                    <span className="text-[8px] uppercase font-mono p-text-muted block">BIAS COEFFICIENT</span>
-                    <span className="text-xs font-mono font-bold p-text-warning">{currentMetrics.disparityEvolution}%</span>
-                  </div>
-                  <div className="p-2 p-bg-secondary rounded border p-border max-w-[130px] shadow-sm">
-                    <span className="text-[8px] uppercase font-mono p-text-muted block">SYSTEMIC RETENTION</span>
-                    <span className="text-xs font-mono font-bold p-text-accent">{(currentMetrics.feedbackScore / 10).toFixed(1)}x</span>
-                  </div>
-                </div>
-              </div>
+            <div className="h-64 w-full rounded p-bg-card border p-border relative overflow-hidden flex items-center justify-center p-4 shadow-inner">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
+                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
+                  <XAxis dataKey="year" tick={{ fontSize: 10, fill: '#888' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: 'var(--color-bg-card)', borderColor: 'var(--color-border)', fontSize: '12px' }}
+                    itemStyle={{ color: 'var(--color-text-main)' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '10px' }} />
+                  <Bar dataKey="approvalRate" name={`${session?.target_outcome || 'Approval'} Rate`} fill="var(--color-accent-gold-muted)" barSize={20} radius={[4, 4, 0, 0]} />
+                  <Line type="monotone" dataKey="fairness" name="Fairness Ratio" stroke="var(--color-accent-gold)" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="disparityEvolution" name="Disparity Evolution" stroke="#EF4444" strokeWidth={2} strokeDasharray="4 4" dot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
             </div>
 
             <div className="flex items-center justify-between text-[11px] p-text-muted mt-3 pt-2.5 border-t p-border">
