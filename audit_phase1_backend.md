@@ -622,3 +622,207 @@ This is Phase 2 complete. The AI and fairness subsystem is functional as a proto
 Audit appendix expanded for: `Phase 2 — AI Agents & Math Logic`.
 
 No code was modified outside this audit artifact.
+
+## PHASE 3: FRONTEND ARCHITECTURE & STATE MANAGEMENT
+
+Scope audited: `decisiontwin-ui/src/store/useDecisionTwinStore.ts`, `decisiontwin-ui/src/services/api.ts`, and the frontend request flow that feeds dashboard/state-driven UI behavior.
+
+This phase focuses on the client-side architecture, memory pressure, error handling, and rendering behavior that will determine whether the product remains responsive and trustworthy under real SaaS usage.
+
+---
+
+## [CRITICAL BUGS]
+
+### 1) The Zustand store is not obviously mutating nested objects directly, but it stores large application state as a single global object that is easy to overwrite
+
+The store in `useDecisionTwinStore.ts` is implemented with `create<DecisionTwinState>((set, get) => ({ ... }))` and uses shallow `set({ ... })` updates. That is largely correct for Zustand and does not contain obvious direct mutation patterns like `state.foo.bar = ...`.
+
+However, the design still has production risk:
+- the app stores both `simulation` and `session` objects in a single global store
+- `runSimulationFlow()` sets `simulation` to a full result object, which may include `yearly_results`, each with `data_snapshot` arrays and full row payloads, not just summarized metrics
+- `overrideDecisionFlow()` replaces the current `simulation` object with a newly recomputed one after an override, without versioning or request ordering control
+- multiple async actions (`initSession`, `checkActiveSession`, `runSimulationFlow`, `overrideDecisionFlow`) can fire concurrently and overwrite each other because there is no request sequencing or cancellation guard
+
+This is not a direct mutation bug, but it is still a race-prone design and a reliability bug under rapid user interaction.
+
+### 2) The frontend lacks a real auth hardening boundary; any mock auth persisted to LocalStorage is bypassable by a user
+
+From the provided frontend files, the store does not show a formal auth system or a secure token exchange. The main risk is that if the app uses mock auth state stored in LocalStorage or session flags to simulate login, a browser user can trivially modify that storage and bypass `AuthGuard`-style logic.
+
+This is not a bug in the audited files alone, but the pattern is a classic client-side bypass risk:
+- localStorage is user-controlled
+- data is not trusted on the client
+- if a route guard or store gate trusts a local flag like `isAuthenticated` or `mockUser`, it can be tampered with in DevTools or via direct storage edits
+
+This should be treated as demo-only auth and not as protection for production access.
+
+### 3) Double-click / rapid re-triggering can create stale-response races and UI confusion
+
+The store has per-action loading flags (`loading.simulation`, `loading.crashTest`, etc.), but it does not enforce an in-flight lock or request ID guard.
+
+Example flow:
+- `runSimulationFlow()` sets loading true and calls `runSimulation({ years })`
+- if the user repeats this quickly, a second call is allowed
+- both async requests resolve in arbitrary order
+- the later one may finish first and set the store state, then the earlier resolves and overwrites it with stale data
+
+This is an unguarded race condition. The UI may appear to work, but the result can be stale, inconsistent, or wrong for the current user state.
+
+### 4) API errors are converted into `error` state, but there is no global consistent recovery or UX contract
+
+`api.ts` has `parseJson()` which throws `ApiError` on non-200 responses. Then the Zustand store catches these and sets `error` state in the store.
+
+This is a decent pattern for a prototype, but it is not enough for production:
+- no centralized error serializer or telemetry hook
+- no retry policy or backoff
+- no route-specific user messaging
+- no user-visible toast/alert contract enforced across all actions
+- no guarantee that all callers handle thrown errors consistently
+
+In practice, this should be treated as partial graceful handling rather than robust production error management.
+
+---
+
+## [STATE/DATA RISKS]
+
+### A. Massive datasets can be stored in the browser store
+
+The `simulation` object is likely a large JSON payload.
+
+Because the app stores the full simulation output in Zustand, with snapshots such as `yearly_results -> data_snapshot -> rows`, the browser can accumulate large arrays of record-level data. In a real environment with thousands of rows and multiple simulations, this can trigger:
+- high memory footprint
+- browser GC pressure
+- slow UI rendering
+- eventual OOM in low-memory browsers or older devices
+
+This is especially dangerous because the app is also rendering charts (likely Recharts/React) against the same data object. The browser now holds both the raw JSON and the chart-specific render trees in memory.
+
+### B. Large data objects are kept in the global store without view scoping
+
+`simulation` is a shared top-level state that is not partitioned by page or data view. This means the app keeps a large object in memory even when the user is not actively viewing the dashboard or chart area.
+
+There is no pruning strategy, no pagination, no summary-only mode, and no normalization of the data to lightweight aggregates for UI rendering.
+
+### C. LocalStorage auth and state persistence are not safe if used as a trust boundary
+
+If the app persists auth state and UI state in `localStorage`, any user can modify it. The current codebase appears to use a global store for UI state rather than a persistent auth store, but the risk pattern remains the same: client-side storage is not server-authenticated and cannot be trusted for authorization.
+
+---
+
+## [PERFORMANCE BOTTLENECKS]
+
+### 1) No memoization or structural optimization is visible for chart-heavy components
+
+The state is centralized in a big object, and the app is likely re-rendering chart-heavy components whenever a store field changes.
+
+The audited code does not show any evidence of:
+- `React.memo` around dashboard/chart subcomponents
+- `useMemo` around derived datasets for charts
+- `useCallback` around handlers passed to chart or table components
+- selector-based Zustand usage to subscribe only to the needed slices
+
+This will cause unnecessary re-renders when toggling modals, changing options, or updating unrelated fields.
+
+### 2) Dashboard and chart components are likely to re-render the whole SVG tree on minor state changes
+
+Even if the charts themselves are not extremely heavy, Recharts produces DOM/SVG nodes for every data change. If the parent dashboard state re-renders because `simulation` or `loading` changed, the chart can re-render its full subtree even when only a small UI control changed.
+
+This makes the app highly sensitive to any parent state change, especially when the store holds large arrays and the components use non-memoized props.
+
+### 3) Heavy UI actions trigger more than one data fetch in the same action flow
+
+A pattern like this is present in `initSession()` and `uploadCustomData()`:
+- set session state
+- call `runSimulationFlow(10)` immediately after upload/init
+
+This means a single user action can cause multiple fetches, multiple state updates, and multiple chart redraws. This is bad UX and adds unnecessary latency.
+
+### 4) No request debouncing is present for repeated actions
+
+The app does not appear to debounce rapid clicks or repeated simulation trigger actions. That means users can fire duplicate expensive operations with no guard.
+
+---
+
+## [RECOMMENDED FIXES]
+
+### Fix 1: Keep the store state minimal and normalized
+
+Instead of storing large raw simulation payloads directly in the store, keep only:
+- compact summaries
+- the active session metadata
+- selected view state
+- filtered or summarized chart data
+
+Store full raw datasets outside the UI state, or fetch them lazily per view. Keep the client store responsible for intent and UI state, not for full production-scale data blobs.
+
+### Fix 2: Add request locking and request IDs for simulation actions
+
+Before launching a long-running request:
+- lock the action if a request with the same key is already active
+- ignore or cancel duplicate requests
+- track request IDs and only apply the latest response
+- discard stale results when a new request supersedes the previous one
+
+This is the minimum needed to avoid race conditions between repeated simulation or override actions.
+
+### Fix 3: Introduce proper auth boundaries and remove demo auth from the client
+
+If auth is needed:
+- use real token-based auth from the backend
+- never trust client-side flags in LocalStorage or Zustand for auth decisions
+- validate permissions server-side, not on the browser
+
+If the app uses a mock login flow for demo purposes, it must be labeled as demo-only and never used in a production route guard.
+
+### Fix 4: Normalize the API layer to enforce consistent error UX
+
+The API module should offer:
+- exported error types
+- standardized error payloads from the backend
+- a centralized `onError` handler or toast hook
+- retry policy for transient network cases
+- consistent `status` mapping for 400/401/500/503
+
+This keeps the UI predictable under failure conditions.
+
+### Fix 5: Memoize heavy UI components and selectors
+
+Use:
+- `React.memo` for chart containers and expensive subtrees
+- `useMemo` for derived chart data
+- `useCallback` for handlers passed to child components
+- Zustand selectors to subscribe only to necessary slices of state
+
+This will prevent unnecessary dashboard redraws and reduce memory churn.
+
+### Fix 6: Remove localhost defaults from runtime defaults where possible
+
+`api.ts` defaults to `http://localhost:8000` for FastAPI. This is acceptable in local development, but a production deployment must use env-based configuration exclusively. Do not allow browser code to silently fall back to a local dev host in production builds.
+
+### Fix 7: Keep API base URL and environment config strict and explicit
+
+The code already tries to use `import.meta.env`, which is the right direction. However, production should enforce a strict environment contract:
+- fail fast if required backend URLs are missing
+- reject accidental local-dev fallback in prod builds
+- surface a clear configuration error rather than silently hitting localhost
+
+---
+
+## Final assessment for Phase 3
+
+The frontend is functionally coherent as a prototype, but it is not production-safe as currently structured.
+
+The most material risks are:
+- state stored as large raw simulation payloads in a global Zustand store
+- no stale-request protection or loading lock for simulation actions
+- client-side mock auth patterns are not secure enough for production authorization
+- chart-heavy dashboard components are likely to re-render too broadly under minor state changes
+- API fallback paths and localhost default URLs are acceptable for local demo work but unsafe in production deployment
+
+This is the Phase 3 frontend audit complete. The UI is usable as a toy or demo architecture, but without store normalization, request locking, chart memoization, and hardened auth boundaries, it is not ready for a multi-user SaaS deployment.
+
+---
+
+Audit appendix expanded for: `Phase 3 — Frontend Architecture & State Management`.
+
+No code was modified outside this audit artifact.
