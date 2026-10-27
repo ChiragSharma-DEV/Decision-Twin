@@ -826,3 +826,115 @@ This is the Phase 3 frontend audit complete. The UI is usable as a toy or demo a
 Audit appendix expanded for: `Phase 3 — Frontend Architecture & State Management`.
 
 No code was modified outside this audit artifact.
+
+PHASE 4: UI/UX, EDGE CASES & CLEANUP
+This phase reviews the React client behavior, layout resilience, and interaction safety under real user conditions. The frontend is visually polished, but the current implementation is still best described as a demo-grade experience rather than a production-grade UI.
+
+[CRITICAL BUGS]
+
+Null/empty chart data can still crash the dashboard rendering path
+
+The dashboard logic derives chart data from simulation?.yearly_results, and the mapping assumes each item has valid metrics, average_target_rate, and other numeric fields.
+If the backend returns an empty array, a malformed object, or a partial payload, the UI can still render a chart container but with broken series points or undefined values.
+Recharts is unforgiving when fed inconsistent series data. A single malformed point can cause visual breakage or a full render failure, and without an Error Boundary around the chart surface, the whole section can take down the parent tree.
+The risk is especially high in slow-network or error states when the app still tries to render the last cached chart data while a new request is in flight.
+There are no meaningful React Error Boundaries around chart-heavy widgets
+
+The dashboard and other analytics surfaces rely on direct child rendering without a safe fallback when data is malformed or a child component throws.
+In a production SaaS app, a bad chart payload should degrade gracefully to an empty-state panel, not white-screen the user.
+Race conditions remain in client-side workflow actions
+
+The store supports multiple actions that fetch data and update state, but there is no strict sequencing or stale-response protection.
+If a user clicks “Run Simulation” twice, or triggers a new dataset upload while a previous simulation is still in progress, the last request can resolve first and overwrite newer state.
+This creates UI confusion where the user sees stale metrics or mismatched chart/tables even though the app is technically “up.”
+Mock auth or client-side gate logic is not production-safe
+
+Any auth decision based on browser-local flags or localStorage is user-controlled.
+A motivated user can edit the browser storage and bypass a UI guard or login gate.
+This is not just a UX matter; it is a trust boundary violation.
+Button disabled states are not consistently enforced across all destructive/actions-heavy interactions
+
+If the app relies on loading state but does not use strict disabled logic consistently, then double-clicks and repeated submissions remain possible.
+This is especially relevant for “Run Simulation”, “Generate Audit”, and dataset upload actions.
+[UI/UX FLAWS]
+
+Hardcoded values and “demo content” remain a risk
+
+The codebase shows a lot of polished marketing copy and hardcoded status labels, domain labels, and performance summaries.
+These are fine for prototype demos, but a production product must ensure metrics, ranges, dollar values, and compliance text are either data-driven or explicitly versioned as benchmark placeholders.
+If a value is not sourced from the backend or configured data, it should not be presented as real output.
+“Coming Soon” overlays and blocked areas are a UX reliability risk
+
+If overlay blocks are visually present but not fully inaccessible to keyboard users, then users can still tab into hidden UI elements.
+A “Coming Soon” state must be a true focus trap or a non-interactive disabled layer with pointer-events: none or a proper modal pattern.
+Without that, users may still trigger underlying controls or interact with inaccessible elements.
+Theme readability is visually polished, but contrast must be audited systematically
+
+The “Clean Light Fintech” theme uses neutral backgrounds and accent colors, which is good for premium SaaS aesthetics.
+However, the true issue is not whether it looks good in a screenshot; it is whether the UI passes WCAG contrast thresholds across all states: hover, disabled, selected, error, and chart labels.
+Many chart labels and status chips can silently fail at smaller sizes without a stricter accessibility pass.
+Micro-interactions are decent, but they are not consistently paired with status-driven feedback
+
+Buttons do not always convey “loading” clearly enough.
+Users need explicit “pending”, “saving”, “simulating”, and “error” states, not just spinner icons or text changes.
+This is needed to avoid double-submits and to communicate why an action is currently blocked.
+[RESPONSIVE/LAYOUT ISSUES]
+
+The UI is clearly desktop-first, not truly responsive
+
+Several layout containers use fixed-width patterns, large padding, and multi-column assumptions that are comfortable for large screens but fragile on smaller devices.
+The app is styled with many utility classes but not consistently with a mobile-first strategy using sm:, md:, lg: breakpoints layered from base.
+This means the app may look acceptable on a 1440p dashboard but degrade badly on 13-inch laptops, iPads, or mid-size tablet widths.
+Recharts SVGs are likely to overflow under constrained widths
+
+The dashboard uses chart data series and likely renders multiple metrics panels next to each other.
+If the chart container does not enforce min-w-0, overflow-hidden, and proper width constraints, the SVG can extend beyond the panel and cause layout breakage or horizontal scrolling.
+This is especially dangerous when combined with sticky sidebars or large KPI cards.
+Tables and before/after comparisons are likely to overflow
+
+The Doppelgänger and comparison views typically include “before/after” tables, matrix rows, and metrics grids.
+Without horizontal scrolling or a mobile stacking strategy, these tables will wrap poorly on smaller screens and become effectively unusable.
+The issue is not just visual; it reduces comprehension and can also hide critical decision differences.
+Side navigation and workspace layout can create poor ergonomics on smaller screens
+
+A three-part layout with sidebar + main workbench + floating copilot panel is visually ambitious but often fragile on medium-width devices.
+If the flex layout does not collapse correctly, the center pane may shrink too aggressively or the side panel may push content off-screen.
+[RECOMMENDED FIXES]
+
+Add strict Error Boundaries for chart and analytics sections
+
+Wrap major visual widgets in scoped error boundaries with safe fallback UI.
+If child data is malformed, render a clear empty-state block instead of crashing the tree.
+Normalize the data contract before chart rendering
+
+Sanitize all chart series input before passing to Recharts.
+Coalesce null/undefined values and ensure timestamps, metrics, and arrays are present and valid.
+Render a “No data available” state when the backend returns incomplete payloads.
+Enforce client-side request locking for actions
+
+Prevent duplicate user-triggered actions by using a request key or “isLoading” guard at the store and component level.
+Ignore or cancel stale responses when a newer request starts.
+Remove mock auth from any trusted decision path
+
+Store only signed server-issued tokens or auth state if a real auth system exists.
+Never trust browser-local persistence as an authorization boundary.
+Improve keyboard and pointer accessibility for overlays and controls
+
+Ensure “Coming Soon” overlays block pointer events and keyboard focus.
+Add aria-disabled, aria-live messaging, and visible focus ring states for all action buttons.
+Audit contrast and focus states across the full UI
+
+Validate text and chart labels against WCAG contrast requirements.
+Ensure active, hover, disabled, and error states are all legible.
+Implement responsive layout rules from the start
+
+Use a mobile-first tailwind strategy.
+Define safe min-width handling for chart cards, table containers, and data panels.
+Add overflow management and scroll containers where long comparison tables are unavoidable.
+Make the “loading” UX explicit and consistent
+
+Disable buttons while in flight.
+Show clear state transitions and user feedback so users know the app is processing rather than frozen.
+Final assessment for Phase 4: This frontend is impressive as a prototype, but it is still too dependent on demo assumptions, client-side state illusions, and optimistic rendering patterns to be treated as production-ready. The most important issues are not cosmetic; they are reliability, trust boundary, and usability risks: malformed chart data can break the UI, mock auth is not trustable, rapid actions can race, and the responsive layout is not yet robust enough for varied real-world device sizes.
+
+This is the final audit phase. The UI is usable as a high-fidelity product demo, but without error isolation, authenticated trust boundaries, suppression of duplicate actions, and responsive layout hardening, it is not yet production-safe.
